@@ -1,3 +1,5 @@
+#%%
+
 import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm  # Displays a progress bar
@@ -9,27 +11,34 @@ import torch.nn.functional as F
 from torchvision import datasets, transforms
 from torch.utils.data import Dataset, Subset, DataLoader, random_split
 
-# TODO: Construct your data in the following baseline structure: 1) ./Dataset/Train/image/, 2) ./Dataset/Train/label, 3) ./Dataset/Test/image, and 4) ./Dataset/Test/label
-class DataSet:
-    def __init__(self, root):
+from dataset import DataSet
+from cnn import Network
 
-        self.ROOT = root
-        self.images = read_images(root + "/image")
-        self.labels = read_labels(root + "/label")
+# ================================================================================
+# TRAINING PARAMETERS
+# ================================================================================
 
-    def __len__(self):
-        # Return number of points in the dataset
+# number of times to train the model on the same dataset
+# more epochs = longer processing
+NUM_EPOCHS = 100
 
-        return len(self.images)
+# ================================================================================
+# OPTIMIZER PARAMETERS
+# ================================================================================
 
-    def __getitem__(self, idx):
-        # Here we have to return the item requested by `idx`. The PyTorch DataLoader class will use this method to make an iterable for training/validation loop.
+# learning rate
+LR = 0.001
 
-        img = images[idx]
-        label = labels[idx]
+# epsilon; the term added to the denominator to improve numerical stability
+EPS = 1e-8
 
-        return img, label
+# penalty
+WEIGHT_DECAY = 0
 
+
+# ================================================================================
+# DATASET ORGANIZATION & SPLITTING
+# ================================================================================
 
 # Load the dataset and train and test splits
 print("Loading datasets...")
@@ -42,10 +51,10 @@ DATA_test_path = Dataset("./Dataset/Test")
 MyTransform = transforms.Compose(
     [
         transforms.Grayscale(num_output_channels=1),  # Convert image to grayscale
-        transforms.ToTensor(),  # Transform from [0,255] uint8 to [0,1] float
-        transforms.Normalize(
-            [0.???], [0.???]
-        ),  # TODO: Normalize to zero mean and unit variance with appropriate parameters
+        transforms.ToTensor(),  # Transform
+        # TODO: Normalize to zero mean and unit variance with appropriate parameters
+        # from [0,255] uint8 to [0,1] float
+        transforms.Normalize([0], [1]),
     ]
 )
 
@@ -56,61 +65,35 @@ print("Done!")
 
 # Create dataloaders
 # TODO: Experiment with different batch sizes
-trainloader = DataLoader(Data_train, batch_size=?, shuffle=True)
-testloader = DataLoader(Data_test, batch_size=?, shuffle=True)
+trainloader = DataLoader(Data_train, batch_size=BATCH_SIZE, shuffle=True)
+testloader = DataLoader(Data_test, batch_size=BATCH_SIZE, shuffle=True)
 
+## declaration of Network
 
-class Network(nn.Module):
-    def __init__(self):
-        super().__init__()
-        # TODO: [Transfer learning with pre-trained ResNet-50] Design your own fully-connected network (FCN) classifier.
-        # Design your own FCN classifier. Here I provide a sample of two-layer FCN.
-        # Refer to PyTorch documentations of torch.nn to pick your layers. (https://pytorch.org/docs/stable/nn.html)
-        # Some common Choices are: Linear, ReLU, Dropout, MaxPool2d, AvgPool2d
-        # If you have many layers, consider using nn.Sequential() to simplify your code
+# MODEL SETUP
+# ================================================================================
 
-        # Load pretrained ResNet-50
-        self.model_resnet = models.resnet50(pretrained=True)
+# the hardware device (gpu or cpu) to use when training
+device = "cuda" if torch.cuda.is_available() else "cpu"
 
-        # Set ResNet-50's FCN as an identity mapping
-        num_fc_in = self.model_resnet.fc.in_features
-        self.model_resnet.fc = nn.Identity()
-
-        # TODO: Design your own FCN
-        self.fc1 = nn.Linear(num_fc_in, ?, bias = ??) # from input of size num_fc_in to output of size ?
-        self.fc2 = nn.Linear(?, 3, bias = ??) # from hidden layer to 3 class scores
-
-    def forward(self, x):
-        # TODO: Design your own network, implement forward pass here
-
-        relu = (
-            nn.ReLU()
-        )  # No need to define self.relu because it contains no parameters
-
-        with torch.no_grad():
-            features = self.model_resnet(x)
-
-        x = self.fc1(
-            features
-        )  # Activation are flattened before being passed to the fully connected layers
-        x = relu(x)
-        x = self.fc2(x)
-
-        # The loss layer will be applied outside Network class
-        return x
-
-
-device = "cuda" if torch.cuda.is_available() else "cpu"  # Configure device
+# our CNN model
 model = Network().to(device)
+
+# our loss function
 criterion = (
     nn.CrossEntropyLoss()
 )  # Specify the loss layer (note: CrossEntropyLoss already includes LogSoftMax())
 # TODO: Modify the line below, experiment with different optimizers and parameters (such as learning rate)
-optimizer = optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=??, weight_decay=???) # Specify optimizer and assign trainable parameters to it, weight_decay is L2 regularization strength (default: lr=1e-2, weight_decay=1e-4)
-num_epochs = ?? # TODO: Choose an appropriate number of training epochs
+
+# our optimizer that will be used when training
+optimizer = optim.Adam(
+    filter(lambda p: p.requires_grad, model.parameters()),
+    lr=LR,
+    weight_decay=WEIGHT_DECAY,
+)  # Specify optimizer and assign trainable parameters to it, weight_decay is L2 regularization strength (default: lr=1e-2, weight_decay=1e-4)
 
 
-def train(model, loader, num_epoch=num_epochs):  # Train the model
+def train(model, loader, num_epoch=NUM_EPOCHS):  # Train the model
     print("Start training...")
     model.train()  # Set the model to training mode
     for i in range(num_epoch):
@@ -143,6 +126,9 @@ def evaluate(model, loader):  # Evaluate accuracy on validation / test set
     print("Evaluation accuracy: {}".format(acc))
     return acc
 
+
+# MODEL TRAINING
+# ================================================================================
 
 train(model, trainloader, num_epochs)
 print("Evaluate on test set")
