@@ -49,7 +49,7 @@ BATCH_SIZE = 100
 
 # number of times to train the model on the same dataset
 # more epochs = longer processing
-NUM_EPOCHS = 1
+NUM_EPOCHS = 2
 
 # ================================================================================
 # OPTIMIZER PARAMETERS
@@ -193,7 +193,7 @@ def train(model, loader, num_epoch=NUM_EPOCHS):  # Train the model
 
             optimizer.zero_grad()  # Clear gradients from the previous iteration
 
-            label = torch.tensor(torch.flatten(label), dtype=torch.long)
+            label = torch.flatten(label).long()
             pred = model(batch)
 
             loss = criterion(pred, label)  # Calculate the loss
