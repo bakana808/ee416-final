@@ -19,52 +19,11 @@ from torch.utils.data import Dataset, Subset, DataLoader, random_split
 from dataset import ImageDataSet
 import cnn
 
-# ================================================================================
-# PROGRAM PARAMETERS
-# ================================================================================
+from config import *
+import config
 
-CLASSES = ("covid", "healthy", "other")
-
-# path to covid images
-DATASET_COVID_PATH = "Data/Covid"
-
-# path to healthy images
-DATASET_HEALTHY_PATH = "Data/Healthy"
-
-# path to "other pnumonia" images
-DATASET_OTHER_PATH = "Data/Others"
-
-# path to output all images to
-DATASET_OUTPUT = "Dataset"
-
-# path to move all images to
-DATASET_TRAIN = "Train"
-
-# ================================================================================
-# TRAINING PARAMETERS
-# ================================================================================
-
-# number of samples to process through the model at a time
-BATCH_SIZE = 100
-
-# number of times to train the model on the same dataset
-# more epochs = longer processing
-NUM_EPOCHS = 2
-
-# ================================================================================
-# OPTIMIZER PARAMETERS
-# ================================================================================
-
-# learning rate; the higher this number is, the faster the weights adjust when training
-LR = 0.001
-
-# epsilon; the term added to the denominator to improve numerical stability
-EPS = 1e-8
-
-# penalty
-WEIGHT_DECAY = 0
-
-# %% DATASET ORGANIZATION
+# %%
+# DATASET ORGANIZATION
 # ================================================================================
 
 
@@ -161,6 +120,7 @@ ld_test = DataLoader(ds_test, batch_size=BATCH_SIZE, shuffle=False)
 # ================================================================================
 
 importlib.reload(cnn)  # reimports the network
+importlib.reload(config)
 
 # the hardware device (gpu or cpu) to use when training
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -178,11 +138,11 @@ criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(
     filter(lambda p: p.requires_grad, model.parameters()),
     lr=LR,
-    weight_decay=WEIGHT_DECAY,
+    weight_decay=config.WEIGHT_DECAY,
 )  # Specify optimizer and assign trainable parameters to it, weight_decay is L2 regularization strength (default: lr=1e-2, weight_decay=1e-4)
 
 
-def train(model, loader, num_epoch=NUM_EPOCHS):  # Train the model
+def train(model, loader, num_epoch=1):  # Train the model
     print("Start training...")
     model.train()  # Set the model to training mode
     for i in range(num_epoch):
@@ -214,6 +174,7 @@ def evaluate(model, loader):  # Evaluate accuracy on validation / test set
         for batch, label in tqdm(loader):
             batch = batch.to(device)
             label = label.to(device)
+            label = torch.flatten(label).long()
             pred = model(batch)
             correct += (torch.argmax(pred, dim=1) == label).sum().item()
     acc = correct / len(loader.dataset)
@@ -221,9 +182,16 @@ def evaluate(model, loader):  # Evaluate accuracy on validation / test set
     return acc
 
 
-# MODEL TRAINING
+# %%
+# TRAINING
 # ================================================================================
 
-train(model, ld_train, NUM_EPOCHS)
+train(model, ld_train, config.NUM_EPOCHS)
+
+# %%
+# VALIDATION
+# ================================================================================
 print("Evaluate on test set")
 evaluate(model, ld_test)
+
+# %%

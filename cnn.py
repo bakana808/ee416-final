@@ -2,22 +2,7 @@ import torch
 from torch import nn
 from torchvision import models
 
-# MODEL PARAMTERS
-# ===============
-
-# number of samples to process at once
-BATCH_SIZE = 100
-
-# if true, linear layers will learn an additive bias
-NN_LINEAR_BIAS = True
-
-# NOTE: each image contains roughly ~90,000 pixels = ~90,000 features
-
-# number of features to output in the first linear layer
-NN_LINEAR_1_FOUT = 1000
-
-# number of features to input in the second linear layer
-NN_LINEAR_2_FIN = 1000
+from config import *
 
 
 class Network(nn.Module):
