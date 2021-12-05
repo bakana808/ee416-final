@@ -2,3 +2,6 @@
 report.**
 !report.tex
 !report.pdf
+Data/**
+Dataset/**
+__pycache__/
