@@ -1,5 +1,6 @@
 import torch
 from torch import nn
+from torchvision import models
 
 # MODEL PARAMTERS
 # ===============
@@ -13,7 +14,7 @@ NN_LINEAR_BIAS = True
 # NOTE: each image contains roughly ~90,000 pixels = ~90,000 features
 
 # number of features to output in the first linear layer
-NN_LINEAR_1_FOUT = 10000
+NN_LINEAR_1_FOUT = 1000
 
 # number of features to input in the second linear layer
 NN_LINEAR_2_FIN = 1000
@@ -42,22 +43,25 @@ class Network(nn.Module):
         self.fc2 = nn.Linear(
             NN_LINEAR_2_FIN, 3, bias=NN_LINEAR_BIAS
         )  # from hidden layer to 3 class scores
+        self.flt1 = nn.Flatten(0, -2)
+        self.flt2 = nn.Flatten()
+        self.dense = nn.Linear(3, 3)
 
     def forward(self, x):
         # TODO: Design your own network, implement forward pass here
 
-        relu = (
-            nn.ReLU()
-        )  # No need to define self.relu because it contains no parameters
+        # No need to define self.relu because it contains no parameters
+        relu = nn.ReLU()
 
         with torch.no_grad():
             features = self.model_resnet(x)
 
-        x = self.fc1(
-            features
-        )  # Activation are flattened before being passed to the fully connected layers
+        # Activation are flattened before being passed to the fully connected layers
+        x = self.fc1(features)
         x = relu(x)
         x = self.fc2(x)
+        x = torch.flatten(x, 1)
+        # x = self.dense(x)
 
         # The loss layer will be applied outside Network class
         return x

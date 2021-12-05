@@ -1,5 +1,6 @@
 #%%
 import re
+import importlib
 
 import os
 import random
@@ -15,12 +16,14 @@ import torch.nn.functional as F
 from torchvision import datasets, transforms
 from torch.utils.data import Dataset, Subset, DataLoader, random_split
 
-from dataset import DataSet
-from cnn import Network
+from dataset import ImageDataSet
+import cnn
 
 # ================================================================================
 # PROGRAM PARAMETERS
 # ================================================================================
+
+CLASSES = ("covid", "healthy", "other")
 
 # path to covid images
 DATASET_COVID_PATH = "Data/Covid"
@@ -34,13 +37,19 @@ DATASET_OTHER_PATH = "Data/Others"
 # path to output all images to
 DATASET_OUTPUT = "Dataset"
 
+# path to move all images to
+DATASET_TRAIN = "Train"
+
 # ================================================================================
 # TRAINING PARAMETERS
 # ================================================================================
 
+# number of samples to process through the model at a time
+BATCH_SIZE = 100
+
 # number of times to train the model on the same dataset
 # more epochs = longer processing
-NUM_EPOCHS = 100
+NUM_EPOCHS = 1
 
 # ================================================================================
 # OPTIMIZER PARAMETERS
@@ -57,15 +66,6 @@ WEIGHT_DECAY = 0
 
 # %% DATASET ORGANIZATION
 # ================================================================================
-
-
-def get_label(path):
-    """Get the label from the name of a sample's filepath."""
-
-    r = re.compile("([a-z]+)([0-9])+")
-    m = r.match(path)
-    label = m.group(1)
-    return label
 
 
 def consolidate_data(dir, new_dir, label, req_ext=".png"):
@@ -98,62 +98,80 @@ moved_samples += consolidate_data(DATASET_COVID_PATH, DATASET_OUTPUT, "covid")
 moved_samples += consolidate_data(DATASET_HEALTHY_PATH, DATASET_OUTPUT, "healthy")
 moved_samples += consolidate_data(DATASET_OTHER_PATH, DATASET_OUTPUT, "other")
 
-print(f"Moved a total of {moved_samples} files.")
+print(f"Moved a total of {moved_samples} files")
 
-# %% DATASET SPLITTING
+# %%
+# DATASET SPLITTING
 # ================================================================================
 
 # list of samples (images)
-samples = os.listdir(DATASET_OUTPUT)
+samples = [DATASET_OUTPUT + "/" + p for p in os.listdir(DATASET_OUTPUT)]
 print(f"Total samples = {len(samples)}")
 
-random.shuffle(samples)  # randomize order of samples
+# randomize order of samples
+random.shuffle(samples)
 
-folds = np.array_split(samples, 5)
+k = 5  # k to use in k-fold cross-validation
+folds = np.array_split(samples, k)
+print(f"Split samples with k = {k}")
+for i, fold in enumerate(folds):
+    print(f"\tGroup {i}: {len(fold)} samples")
 
-# %% DATASET PREPROCESSING
+# %%
+# DATASET PREPROCESSING
 # ================================================================================
 
-# Data path
-DATA_train_path = Dataset("./Dataset/Train")
-DATA_test_path = Dataset("./Dataset/Test")
 
-# Data normalization
-MyTransform = transforms.Compose(
-    [
-        transforms.Grayscale(num_output_channels=1),  # Convert image to grayscale
-        transforms.ToTensor(),  # Transform
-        # TODO: Normalize to zero mean and unit variance with appropriate parameters
-        # from [0,255] uint8 to [0,1] float
-        transforms.Normalize([0], [1]),
-    ]
-)
+def split_dataset(n=0):
+    """Split the dataset into the training and test set.
 
-DATA_train = datasets.ImageFolder(root=DATA_train_path, transform=MyTransform)
-DATA_test = datasets.ImageFolder(root=DATA_test_path, transform=MyTransform)
+    Given a k-fold split, n is a number between 0 and k-1 referencing
+    which group in the fold to use as the test set.
+    The remaining groups will be used as the training set.
+    """
+    test_set = folds[n]
+    training_set = []
+    for i in range(len(folds)):
+        if i != n:
+            training_set += list(folds[i])
 
-print("Done!")
+    return training_set, test_set
 
-# Create dataloaders
-# TODO: Experiment with different batch sizes
-trainloader = DataLoader(Data_train, batch_size=BATCH_SIZE, shuffle=True)
-testloader = DataLoader(Data_test, batch_size=BATCH_SIZE, shuffle=True)
+
+# create splits
+n = 0
+print(f"Creating test/split with n = {n}")
+paths_train, paths_test = split_dataset(n)
+
+# create datasets
+ds_train = ImageDataSet(paths_train)
+ds_test = ImageDataSet(paths_test)
+
+# imfolder_train = datasets.ImageFolder(root=DATA_train_path, transform=MyTransform)
+# imfolder_test = datasets.ImageFolder(root=DATA_test_path, transform=MyTransform)
+
+# create dataloaders
+ld_train = DataLoader(ds_train, batch_size=BATCH_SIZE, shuffle=False)
+ld_test = DataLoader(ds_test, batch_size=BATCH_SIZE, shuffle=False)
 
 ## declaration of Network
 
-# %% MODEL SETUP
+# %%
+# MODEL SETUP
 # ================================================================================
+
+importlib.reload(cnn)  # reimports the network
 
 # the hardware device (gpu or cpu) to use when training
 device = "cuda" if torch.cuda.is_available() else "cpu"
+print("Using device: %s" % device)
 
 # our CNN model
-model = Network().to(device)
+model = cnn.Network().to(device)
 
 # our loss function
-criterion = (
-    nn.CrossEntropyLoss()
-)  # Specify the loss layer (note: CrossEntropyLoss already includes LogSoftMax())
+criterion = nn.CrossEntropyLoss()
+# Specify the loss layer (note: CrossEntropyLoss already includes LogSoftMax())
 # TODO: Modify the line below, experiment with different optimizers and parameters (such as learning rate)
 
 # our optimizer that will be used when training
@@ -172,9 +190,14 @@ def train(model, loader, num_epoch=NUM_EPOCHS):  # Train the model
         for batch, label in tqdm(loader):
             batch = batch.to(device)
             label = label.to(device)
+
             optimizer.zero_grad()  # Clear gradients from the previous iteration
-            pred = model(batch)  # This will call Network.forward() that you implement
+
+            label = torch.tensor(torch.flatten(label), dtype=torch.long)
+            pred = model(batch)
+
             loss = criterion(pred, label)  # Calculate the loss
+
             running_loss.append(loss.item())
             loss.backward()  # Backprop gradients to all tensors in the network
             optimizer.step()  # Update trainable weights
@@ -201,6 +224,6 @@ def evaluate(model, loader):  # Evaluate accuracy on validation / test set
 # MODEL TRAINING
 # ================================================================================
 
-train(model, trainloader, num_epochs)
+train(model, ld_train, NUM_EPOCHS)
 print("Evaluate on test set")
-evaluate(model, testloader)
+evaluate(model, ld_test)
