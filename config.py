@@ -2,8 +2,6 @@
 # PROGRAM PARAMETERS
 # ================================================================================
 
-CLASSES = ("covid", "healthy", "other")
-
 # path to covid images
 DATASET_COVID_PATH = "Data/Covid"
 
@@ -16,19 +14,20 @@ DATASET_OTHER_PATH = "Data/Others"
 # path to output all images to
 DATASET_OUTPUT = "Dataset"
 
-# path to move all images to
-DATASET_TRAIN = "Train"
+# final image dimensions to use during transformation
+SAMPLE_SIZE = (400, 400)
+
 
 # ================================================================================
 # TRAINING PARAMETERS
 # ================================================================================
 
 # number of samples to process through the model at a time
-BATCH_SIZE = 150
+BATCH_SIZE = 100
 
 # number of times to train the model on the same dataset
 # more epochs = longer processing
-NUM_EPOCHS = 10
+NUM_EPOCHS = 50
 
 # ================================================================================
 # OPTIMIZER PARAMETERS
