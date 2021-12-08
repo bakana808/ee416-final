@@ -43,3 +43,32 @@ Before running the program, place the folder of images labeled "COVID" in `Data/
 
 Then, you can run:
 `python eg.py`
+
+## Results
+
+### Training times for various numbers of epochs (CUDA w/ RTX 3070)
+
+\# Epochs | Training & Validation Time (seconds)
+----------|-------------------------------------
+1         | 11.818
+10        | 88.611
+25        | 250.234
+50        | 466.927
+
+### Accuracys for various numbers of epochs
+
+1 epoch (average = 52.0%):
+
+![](accuracy_1.png)
+
+10 epochs (average = 76.5%):
+
+![](accuracy_10.png)
+
+25 epochs (average = 80.3%):
+
+![](accuracy_25.png)
+
+50 epochs (average = 89.5%):
+
+![](accuracy_50.png)

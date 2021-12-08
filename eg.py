@@ -1,4 +1,5 @@
 #%%
+import time
 import re
 import importlib
 
@@ -9,15 +10,13 @@ from PIL import Image
 
 import numpy as np
 import matplotlib.pyplot as plt
-from numpy.core.numeric import cross
 from tqdm.autonotebook import tqdm, trange  # Displays a progress bar
 
 import torch
 from torch import nn
 from torch import optim
-import torch.nn.functional as F
-from torchvision import datasets, transforms
-from torch.utils.data import Dataset, Subset, DataLoader, random_split
+from torchvision import transforms
+from torch.utils.data import DataLoader
 
 from dataset import ImageDataSet
 import cnn
@@ -262,6 +261,8 @@ def cross_validate(k, model_type):
 
     accuracies = []
 
+    t = time.time()
+
     # run training cycle for each group
     for n in range(k):
 
@@ -301,6 +302,9 @@ def cross_validate(k, model_type):
         # evaluate model and save accuracy
         print("Evaluating model...")
         accuracies.append(evaluate(model, ld_test))
+
+    time_elapsed = time.time() - t
+    print("Training completed in %.3f seconds" % time_elapsed)
 
     # print accuracies
     print("Model estimated accuracies:")
